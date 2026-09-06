@@ -1,10 +1,39 @@
 {
-  "skipDangerousModePermissionPrompt": true,
-  "env": {"DISABLE_AUTOUPDATER": "1", "DISABLE_TELEMETRY": "1"},
+  "env": {
+    "DISABLE_AUTOUPDATER": "1",
+    "DISABLE_TELEMETRY": "1"
+  },
   "hooks": {
-    "SessionStart": [{"hooks": [{"type": "command", "command": "python3 /home/companion/.claude/hooks/session-start.py"}]}],
-    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "/home/companion/.claude/hooks/telegram-inbox-feed.py"}]}],
-    "PreToolUse": [{"matcher": "mcp__plugin_(mila-)?telegram_telegram__reply|mcp__plugin_(mila-)?telegram_telegram__edit_message",
-                    "hooks": [{"type": "command", "command": "python3 /home/companion/.claude/hooks/send-guard.py"}]}]
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/companion/.claude/hooks/session-start.py"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/companion/.claude/hooks/telegram-inbox-feed.py"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__plugin_(mila-)?telegram_telegram__reply|mcp__plugin_(mila-)?telegram_telegram__edit_message",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/companion/.claude/hooks/send-guard.py"
+          }
+        ]
+      }
+    ]
   }
 }
