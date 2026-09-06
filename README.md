@@ -1,9 +1,9 @@
-# Mila Core
+# Mila Companion
 
 The kit that turns a Claude Code subscription into an assistant your team can
 actually talk to — in Telegram, in group chats, all day.
 
-Claude Code is a terminal tool. It waits for you at a keyboard. Mila Core is
+Claude Code is a terminal tool. It waits for you at a keyboard. Mila Companion is
 what we added around it so it could work the way a colleague works: reachable
 from a phone, present in client chats, surviving restarts, and behaving itself
 in front of people who are not engineers.
@@ -11,6 +11,38 @@ in front of people who are not engineers.
 This is the kit, extracted from a fleet of 18 assistants that run real client
 work every day — travel bookings, a newspaper, clinics, tender monitoring.
 Every rule in here cost us something before it became a rule.
+
+## What it is for
+
+A companion, not a replacement. Each client has a director — an agent that works
+in their chats, on their budget, under their rules. The companion sits next to
+the owner instead, runs on the owner's own subscription, and has one first duty:
+keep the directors healthy and make them better.
+
+That duty is concrete work, not a slogan:
+
+- **Prevention** — watch for the failure the director cannot see: a silent
+  channel, an empty fuel account, a promise with a deadline nobody will meet.
+- **Teaching** — when a director lacks an ability, install the ability, don't do
+  the work in its place. A rule learned once is cheaper than a task done twice.
+- **Review** — do the same task on the strongest model, compare, and show the
+  director the difference on its own work rather than in the abstract.
+- **Monitoring** — know which agents are alive, what they answered, and what
+  they promised, before the client notices.
+
+The second duty is the work itself. The companion has the whole professional
+skill catalogue and the strongest model available on a subscription, so
+strategy, judgement calls and anything creative land here. The split between
+"the director does it" and "the companion does it" is the owner's dial, not a
+property of the code: it moves per task, per client, per day.
+
+Two things are deliberately separate from this repository:
+
+- **The Telegram plugin** — the channel itself is a standalone Claude Code
+  plugin, on its way to the Anthropic plugin marketplace. This kit uses it; it
+  does not contain it.
+- **The fleet runtime** — the directors run on a different core entirely. The
+  companion talks to them, it is not built from them.
 
 ---
 
@@ -73,8 +105,8 @@ Requires an existing Claude Code installation and [Bun](https://bun.sh) for the
 Telegram plugin.
 
 ```sh
-git clone https://github.com/shakhruz/mila-core
-cd mila-core
+git clone https://github.com/shakhruz/mila-companion
+cd mila-companion
 ./install/install.sh --dry-run   # see exactly what it will touch
 ./install/install.sh
 ```
@@ -368,7 +400,7 @@ because a skill here is a file that one agent reads and another can be taught
 to write.
 
 Details and contact:
-**[milagpt.io/mila-core](https://milagpt.io/mila-core?from=github)**
+**[milagpt.io/mila-companion](https://milagpt.io/mila-companion?from=github)**
 
 The code being open is the reason this is worth buying rather than the reason
 it isn't: you can read every line you are paying someone to teach you to run.

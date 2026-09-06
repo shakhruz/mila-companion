@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""limit_watch.py — датчик лимита подписки Claude Code (mila-core, 05.09.2026).
+"""limit_watch.py — датчик лимита подписки Claude Code (mila-companion, 05.09.2026).
 
 Зачем. Когда подписка упирается в лимит, Claude Code отвечает HTTP 429
 «You've hit your session limit · resets 2:10pm (Asia/Tashkent)», а агент с той

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mila Core — installs the assistant kit into an existing Claude Code setup.
+# Mila Companion — installs the assistant kit into an existing Claude Code setup.
 #
 # What it does, in order, and nothing else:
 #   1. copies the skills into ~/.claude/skills/
@@ -22,7 +22,7 @@ DRY=0
 say() { printf '  %s\n' "$*"; }
 run() { if [[ $DRY -eq 1 ]]; then say "would: $*"; else "$@"; fi; }
 
-echo "Mila Core installer"
+echo "Mila Companion installer"
 echo "  target: $CLAUDE_DIR"
 [[ $DRY -eq 1 ]] && echo "  DRY RUN — nothing will be written"
 echo

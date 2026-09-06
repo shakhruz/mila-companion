@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mila Core — bootstrap a fresh Linux server into a working assistant host.
+# Mila Companion — bootstrap a fresh Linux server into a working assistant host.
 #
 # Run as root on a clean Ubuntu/Debian box. Idempotent: safe to run twice, it
 # skips what is already in place and says so. Nothing here is irreversible
@@ -51,7 +51,7 @@ case "${ID:-}" in
      echo "proceed manually or adapt this script" >&2; exit 1 ;;
 esac
 
-echo "Mila Core bootstrap"
+echo "Mila Companion bootstrap"
 say "host: $(hostname) · $PRETTY_NAME"
 say "user: $USER_NAME"
 [[ $DRY -eq 1 ]] && say "DRY RUN — nothing will change"
@@ -135,11 +135,11 @@ fi
 # ── kit ────────────────────────────────────────────────────────────────────
 head "Kit"
 if [[ -z "$KIT_SRC" ]]; then
-  KIT_SRC="$HOME_DIR/mila-core"
+  KIT_SRC="$HOME_DIR/mila-companion"
   if [[ -d "$KIT_SRC/.git" ]]; then
     say "kit already cloned at $KIT_SRC"
   else
-    run su - "$USER_NAME" -c "git clone -q https://github.com/shakhruz/mila-core $KIT_SRC"
+    run su - "$USER_NAME" -c "git clone -q https://github.com/shakhruz/mila-companion $KIT_SRC"
     say "kit cloned to $KIT_SRC"
   fi
 fi
