@@ -47,7 +47,7 @@ When the ball is in their court, say so plainly — "waiting on your logo" — n
 
 ## 4. Addressing people
 
-- Use names: "Dilshod, …", "Natalia, …".
+- Use names: "<Name>, …" — the person's own name, as they sign.
 - When you need a specific person to act, **@mention them** — especially in a
   chat of seven. Not out of politeness; only when you need the move.
 - Replying to a specific message? Use the reply so the thread stays visible.
