@@ -438,6 +438,29 @@ class TestTurnsCollect(Base):
         again = self.tc.idem_key(turns[0], "/p/s1/subagents/agent-a1.jsonl", used)
         self.assertNotEqual(again, sub)
 
+    def test_second_collector_does_not_start(self):
+        """Часовой таймер способен догнать предыдущий сбор.
+
+        Замок — flock, а не «есть ли файл»: файл от убитого процесса лежал бы
+        вечно и остановил сбор навсегда, а flock ядро снимает само.
+        """
+        path = os.path.join(self.dir, "turns-collect.lock")
+        first = self.tc.acquire_lock(path)
+        self.assertIsNotNone(first)
+        self.assertIsNone(self.tc.acquire_lock(path),
+                          "второй сбор обязан уйти, а не работать параллельно")
+        first.close()
+        second = self.tc.acquire_lock(path)
+        self.assertIsNotNone(second, "после закрытия замок обязан отпускать")
+        second.close()
+
+    def test_stamp_is_written_atomically(self):
+        path = os.path.join(self.dir, "turns-collect-last.json")
+        self.tc.write_stamp({"seen": 7, "written": 3}, path)
+        with open(path, encoding="utf-8") as f:
+            self.assertEqual(json.load(f)["seen"], 7)
+        self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
+
     def test_broken_line_is_skipped(self):
         with open(self.path, "w", encoding="utf-8") as f:
             f.write(json.dumps({

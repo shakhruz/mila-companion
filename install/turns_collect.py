@@ -41,10 +41,13 @@ usd_cost СПРАВОЧНАЯ величина. Никто эти доллары
   turns_collect.py --dry-run --show 5  # посмотреть, ничего не записывая
 """
 import argparse
+import errno
+import fcntl
 import json
 import os
 import re
 import sys
+import time
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 
@@ -53,6 +56,8 @@ import records                                    # noqa: E402
 import usage_collect as uc                        # noqa: E402
 
 PROJECTS = uc.PROJECTS
+LOCK = os.path.join(records.RECORDS_DIR, "turns-collect.lock")
+STAMP = os.path.join(records.RECORDS_DIR, "turns-collect-last.json")
 
 # Тег канала, которым плагин Telegram подписывает входящее сообщение. Из него
 # берутся настоящие chat_id и message_id — те же, по которым ход найдут в
@@ -62,6 +67,60 @@ CHANNEL_TAG = re.compile(
 TAG_ATTR = re.compile(r'(\w+)="([^"]*)"')
 
 MAX_TEXT = int(os.environ.get("MILA_RECORD_TEXT_MAX", "100000"))
+
+
+def acquire_lock(path=None):
+    """Замок на время сбора. None означает «уже идёт, уходим».
+
+    Прогон по всем транскриптам занимает секунды, но на большой машине —
+    десятки, и часовой таймер способен догнать предыдущий. Две копии, читающие
+    одни файлы и пишущие в одну базу, не портят данные (ключ повтора держит),
+    но удваивают работу и путают отметку последнего сбора.
+
+    Замок — flock на отдельном файле рядом с базой, а не проверка «есть ли
+    файл»: файл от убитого процесса остаётся лежать и блокирует сбор навсегда,
+    а flock ядро снимает само, когда процесс умирает.
+    """
+    path = path or LOCK
+    d = os.path.dirname(path)
+    if d:
+        os.makedirs(d, mode=0o700, exist_ok=True)
+    fh = open(path, "a+", encoding="utf-8")
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as e:
+        if e.errno not in (errno.EACCES, errno.EAGAIN):
+            raise
+        fh.close()
+        return None
+    fh.seek(0)
+    fh.truncate()
+    fh.write("%d %s\n" % (os.getpid(),
+                          datetime.now().astimezone().isoformat(timespec="seconds")))
+    fh.flush()
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+    return fh
+
+
+def write_stamp(payload, path=None):
+    """Отметка последнего сбора — по ней доктор видит, что таймер работает.
+
+    «Таймер загружен» и «сбор произошёл» — разные утверждения: загруженный
+    таймер, падающий на старте, выглядит здоровым в любом списке служб.
+    """
+    path = path or STAMP
+    try:
+        os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=1)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)
+    except OSError:
+        pass
 
 
 def clip(text):
@@ -347,11 +406,28 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="ничего не записывать")
     ap.add_argument("--show", type=int, default=0, help="показать N собранных ходов")
     ap.add_argument("--json", action="store_true", dest="as_json")
+    ap.add_argument("--quiet", action="store_true",
+                    help="для таймера: молчать, когда добавлять нечего")
+    ap.add_argument("--no-lock", action="store_true",
+                    help="не брать замок (для отладки)")
     args = ap.parse_args()
 
     if not os.path.isdir(PROJECTS):
         print("нет каталога проектов: %s" % PROJECTS, file=sys.stderr)
         return 1
+
+    lock = None
+    if not args.no_lock and not args.dry_run:
+        lock = acquire_lock()
+        if lock is None:
+            # Часовой таймер догнал предыдущий сбор. Человеку за терминалом
+            # это надо сказать, а в журнал службы — нет: строка раз в час о
+            # том, что всё в порядке, делает журнал нечитаемым.
+            if sys.stderr.isatty():
+                print("сбор уже идёт — выхожу", file=sys.stderr)
+            return 0
+
+    started_at = time.time()
 
     day0 = (datetime.now().astimezone()
             - timedelta(days=args.days - 1)).strftime("%Y-%m-%d")
@@ -437,6 +513,24 @@ def main():
     finally:
         if con is not None:
             con.close()
+
+    if not args.dry_run:
+        write_stamp({
+            "finished_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "finished_ts": time.time(),
+            "took_sec": round(time.time() - started_at, 1),
+            "since": day0, "seen": seen, "written": written, "skipped": skipped,
+            "agent": args.agent,
+        })
+    if lock is not None:
+        lock.close()
+
+    if args.quiet and not args.as_json:
+        # Молчим ровно тогда, когда сказать нечего: сбор прошёл, нового нет.
+        if not written:
+            return 0
+        print("Ходы с %s: записано %d (найдено %d)" % (day0, written, seen))
+        return 0
 
     if args.as_json:
         json.dump({"since": day0, "seen": seen, "written": written,
