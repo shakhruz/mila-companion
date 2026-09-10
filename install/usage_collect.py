@@ -12,6 +12,11 @@ Claude Code пишет транскрипт каждой сессии в ~/.clau
 раз, запись — дороже входа. Пока их не видно раздельно, «дорогой день» и
 «длинный день» выглядят одинаково.
 
+Считается ОТВЕТАМИ модели, а не строками транскрипта: один ответ пишется
+несколькими строками (размышление, текст, каждый вызов инструмента), и usage в
+них повторяется. До 10.09.2026 здесь складывались строки — записи в журнале,
+сделанные раньше, завышены примерно вдвое. Новые помечены counting.
+
 Пишет usage-log.jsonl (одна строка на сессию за прогон, дозапись) и печатает
 сводку. Ничего не удаляет и не переписывает: журнал только растёт.
 
@@ -117,6 +122,62 @@ def blank():
             "thinking": 0, "turns": 0}
 
 
+def usage_fields(u):
+    """Токены одного ОТВЕТА модели из блока usage транскрипта.
+
+    Единственное место, где транскрипт превращается в цифры: этим же разбором
+    пользуется turns_collect.py. Два разбора одного формата — это два ответа
+    на один вопрос, и расходиться они начинают молча.
+
+    Изредка верхний уровень usage приходит нулями, а настоящие числа лежат в
+    usage.iterations — тогда берём оттуда. На этой машине так пришло 5 ответов
+    из 488 в одной сессии; молчаливый ноль в отчёте не отличить от «модель
+    ничего не сделала».
+    """
+    src = u
+    if not (u.get("input_tokens") or u.get("output_tokens")
+            or u.get("cache_creation_input_tokens")
+            or u.get("cache_read_input_tokens")):
+        its = u.get("iterations")
+        if isinstance(its, list) and its:
+            src = {}
+            for it in its:
+                if not isinstance(it, dict):
+                    continue
+                for k in ("input_tokens", "output_tokens",
+                          "cache_creation_input_tokens",
+                          "cache_read_input_tokens"):
+                    src[k] = (src.get(k) or 0) + (it.get(k) or 0)
+    det = u.get("output_tokens_details") or {}
+    return {
+        "in": src.get("input_tokens", 0) or 0,
+        "out": src.get("output_tokens", 0) or 0,
+        "cache_write": src.get("cache_creation_input_tokens", 0) or 0,
+        "cache_read": src.get("cache_read_input_tokens", 0) or 0,
+        "thinking": det.get("thinking_tokens", 0) or 0,
+        "turns": 1,
+    }
+
+
+def response_key(entry, msg):
+    """Чем один ответ модели отличается от другого.
+
+    Ответ модели пишется в транскрипт НЕСКОЛЬКИМИ строками — размышление,
+    текст, каждый вызов инструмента, — и в каждой строке повторяется один и
+    тот же usage. Кто считает построчно, тот считает один и тот же ответ по
+    два-три раза: в замеренной сессии 852 строки против 488 настоящих ответов,
+    завышение в 1,7 раза. На таких цифрах принимают решение «клиент невыгоден».
+
+    None означает «отличить нечем» — тогда строка считается как есть, потому
+    что потерять расход хуже, чем сосчитать его дважды.
+    """
+    rid = entry.get("requestId") or ""
+    mid = msg.get("id") or "" if isinstance(msg, dict) else ""
+    if not rid and not mid:
+        return None
+    return (rid, mid)
+
+
 def add(dst, src):
     for k in ("in", "out", "cache_write", "cache_read", "thinking", "turns"):
         dst[k] += src[k]
@@ -157,6 +218,7 @@ def scan_file(path, since):
     """Возвращает {день: {модель: расход}}. Битые строки пропускаются молча:
     транскрипт пишется на лету, последняя строка может быть недописана."""
     out = defaultdict(lambda: defaultdict(blank))
+    seen = set()
     try:
         f = open(path, encoding="utf-8", errors="replace")
     except OSError:
@@ -175,6 +237,11 @@ def scan_file(path, since):
             u = msg.get("usage")
             if not isinstance(u, dict):
                 continue
+            key = response_key(d, msg)
+            if key is not None:
+                if key in seen:
+                    continue  # та же реплика модели, просто следующий её блок
+                seen.add(key)
             ts = d.get("timestamp") or ""
             day = local_day(ts)
             if not day or (since and day < since):
@@ -182,14 +249,7 @@ def scan_file(path, since):
             model = msg.get("model") or "unknown"
             if model == "<synthetic>":
                 continue  # служебные сообщения оболочки, не вызов модели
-            rec = out[day][model]
-            rec["in"] += u.get("input_tokens", 0) or 0
-            rec["out"] += u.get("output_tokens", 0) or 0
-            rec["cache_write"] += u.get("cache_creation_input_tokens", 0) or 0
-            rec["cache_read"] += u.get("cache_read_input_tokens", 0) or 0
-            det = u.get("output_tokens_details") or {}
-            rec["thinking"] += det.get("thinking_tokens", 0) or 0
-            rec["turns"] += 1
+            add(out[day][model], usage_fields(u))
     return out
 
 
@@ -212,6 +272,7 @@ def scan_by_chat(path, since):
     # цифрах принимается решение «клиент невыгоден».
     per_chat = defaultdict(lambda: defaultdict(blank))
     basket = defaultdict(blank)
+    seen = set()
     try:
         f = open(path, encoding="utf-8", errors="replace")
     except OSError:
@@ -232,13 +293,12 @@ def scan_by_chat(path, since):
             u = msg.get("usage")
             if isinstance(u, dict) and d.get("type") == "assistant":
                 model = msg.get("model") or ""
-                if model != "<synthetic>":
-                    b = basket[model or "unknown"]
-                    b["in"] += u.get("input_tokens", 0) or 0
-                    b["out"] += u.get("output_tokens", 0) or 0
-                    b["cache_write"] += u.get("cache_creation_input_tokens", 0) or 0
-                    b["cache_read"] += u.get("cache_read_input_tokens", 0) or 0
-                    b["turns"] += 1
+                key = response_key(d, msg)
+                dup = key is not None and key in seen
+                if key is not None:
+                    seen.add(key)
+                if model != "<synthetic>" and not dup:
+                    add(basket[model or "unknown"], usage_fields(u))
 
             content = msg.get("content")
             if not isinstance(content, list):
@@ -418,7 +478,10 @@ def main():
         try:
             with open(LOG, "a", encoding="utf-8") as f:
                 for d in days_out:
-                    f.write(json.dumps({"collected_at": stamp, "basis": basis, **d},
+                    # counting отличает новые строки от старых, где один ответ
+                    # модели считался столько раз, сколько блоков он занял.
+                    f.write(json.dumps({"collected_at": stamp, "basis": basis,
+                                        "counting": "per-response", **d},
                                        ensure_ascii=False) + "\n")
             os.chmod(LOG, 0o600)
         except OSError as e:
