@@ -62,6 +62,7 @@ Two things are deliberately separate from this repository:
 | `install/mila` | One-word launcher: `mila` resumes, `mila new` starts fresh, `mila status` checks the channel, `mila inbox` shows unread messages. |
 | `install/telegram-inbox-feed.py` | Hook that surfaces incoming Telegram messages in the terminal — and any promise whose deadline is today or past. |
 | `install/usage_collect.py` | Token spend by day and model, read straight from the session transcripts. Wired into the launcher as `mila usage`. |
+| `install/records.py` + `install/turns_collect.py` | The books: a turn-by-turn conversation table (schema-compatible with the fleet's directors) and a ledger of paid outbound calls, with a switch for how much of the conversation text is kept. `mila turns`, `mila records`. See [`docs/uchet.md`](docs/uchet.md). |
 | `install/chats_index.py` | Chat registry: which chats are connected, who talks in them, when they last did. `mila chats`. |
 | `install/chat_locale.py` | Timezone and language per chat. `mila when` shows what time it is for every client and who is in quiet hours. |
 | `install/chat_note.py` | Writes into a chat card — purpose, participants, promises, notes. `mila owe` lists every open promise across all chats. |
@@ -175,6 +176,66 @@ enough to invoice.
 Cache is why this is worth having. Reading cache is roughly ten times cheaper
 than fresh input and writing it is more expensive — until you see them apart, an
 expensive day and a merely long day look identical.
+
+Counted per model response, not per transcript line. One response is written to
+the transcript as several lines — thinking, text, each tool call — with the same
+`usage` block repeated in every one of them. Counting lines inflated the figure
+by 1.7× (852 lines against 488 actual responses in a measured session), and that
+is the number someone uses to decide a client is unprofitable.
+
+---
+
+## Keeping the books
+
+Full documentation, in Russian: [`docs/uchet.md`](docs/uchet.md).
+
+Two ledgers, two different questions. Mixing them is the whole point of keeping
+them apart: in the first one the dollars are almost always notional, in the
+second they are always real.
+
+```
+$ mila turns                      # collect turns from the transcripts
+$ mila records show turns --days 7
+$ mila records show external --days 30
+```
+
+**`conversations.db` · `turns`** — what happened. One row per exchange: the
+person's message and the agent's reply, with the model, the reasoning mode, the
+tokens, cache reads and writes separately, latency, the tools called and the
+price. The first fourteen columns match a fleet director's `turns` table
+verbatim, so "how much did we talk to this client" is one query across the fleet
+and the companion; the extra columns are added with `ALTER TABLE`, which means
+this module can open a director's live database and extend it without losing a
+row.
+
+The price in that table is **notional** whenever `paid_by = subscription`.
+Nobody charged those dollars — the figure says what the same volume would have
+cost at API list price, which is a measure of what the subscription gives back.
+Only `paid_by = api_key` is money you reconcile.
+
+**`external-spend.db` · `external_calls`** — what actually left the building: an
+image, a voice, a video, someone else's model. Today the companion makes no
+outbound paid calls at all, which is exactly why the ledger exists now: the
+first skill that generates a picture would otherwise spend silently, and the
+provider's statement would be the one to notice. `request_id` is mandatory —
+a ledger you cannot reconcile is a feeling, not a ledger. Any skill writes to it
+in one line:
+
+```python
+from records import record_external
+record_external(provider="fal", service="lyria-3", usd=0.08,
+                units=2, unit_kind="треки", request_id="fal-7c1a")
+```
+
+Conversation texts are personal data. `MILA_RECORD_TEXT` decides what is kept —
+`full` (the default: this is the owner's own agent), `length` (sizes only) or
+`none`. The choice is written into every row, so an empty text can never be
+mistaken for lost data. Installing for a client whose chats carry other people's
+data, set `length` or `none`.
+
+`mila doctor` checks all of it: both databases present, schema complete, still
+being written to, and not shrinking — the last one compared against the previous
+check, because a database someone deleted rows from looks perfectly healthy.
 
 ---
 
