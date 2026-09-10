@@ -183,6 +183,11 @@ the transcript as several lines — thinking, text, each tool call — with the 
 by 1.7× (852 lines against 488 actual responses in a measured session), and that
 is the number someone uses to decide a client is unprofitable.
 
+Figures written before 10 September 2026 are not comparable with the ones after:
+everything in `usage-log.jsonl` from before that date was counted per line and is
+inflated by roughly 1.7×. Spending did not drop — the error did. New rows carry
+`counting: per-response`; old ones have no such field.
+
 ---
 
 ## Keeping the books
@@ -233,9 +238,19 @@ Conversation texts are personal data. `MILA_RECORD_TEXT` decides what is kept �
 mistaken for lost data. Installing for a client whose chats carry other people's
 data, set `length` or `none`.
 
+Collection runs **hourly**, installed with the kit — launchd on a Mac, a systemd
+user timer on a server. Not on the hour: the minute is derived from the hostname
+and lands between :10 and :49, because everyone else's crons sit at the top and
+the bottom, and a collector firing in the same second as one records a turn that
+is still in flight as a failure. Overlap is safe — a `flock` next to the database
+means a second collector exits quietly. `MILA_TURNS_MINUTE` and `MILA_AGENT`
+override the defaults.
+
 `mila doctor` checks all of it: both databases present, schema complete, still
-being written to, and not shrinking — the last one compared against the previous
-check, because a database someone deleted rows from looks perfectly healthy.
+being written to, not shrinking — the last one compared against the previous
+check, because a database someone deleted rows from looks perfectly healthy —
+and that the hourly timer is both installed and has actually run within the last
+two hours, which are two different questions.
 
 ---
 
