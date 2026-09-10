@@ -105,6 +105,43 @@ def acquire_lock(path=None):
     return fh
 
 
+LOG_FILE = os.environ.get("MILA_TURNS_LOG",
+                          os.path.join(uc.CLAUDE_DIR, "turns-collect.log"))
+LOG_CAP = 1_000_000       # больше этого — режем
+LOG_KEEP = 500_000        # столько оставляем с конца
+
+
+def trim_log(path=None, cap=LOG_CAP, keep=LOG_KEEP):
+    """Журнал таймера: оставить хвост, начало отбросить.
+
+    Растёт он медленно — строка только когда что-то записано, — и именно
+    поэтому хвост легко оставить незакрытым. Незакрытый хвост закрывается
+    самым неудобным образом: о нём узнают ночью и не от себя.
+
+    Режем НА МЕСТЕ (r+b, truncate), а не через временный файл с заменой:
+    служба уже держит этот файл открытым, и подмена inode отправила бы вывод
+    текущего прогона в удалённый файл. Дескриптор открыт в режиме дозаписи,
+    поэтому после укорачивания служба пишет в новый конец, а не в дыру.
+    """
+    path = path or LOG_FILE
+    try:
+        if os.path.getsize(path) <= cap:
+            return False
+        with open(path, "r+b") as f:
+            f.seek(-keep, os.SEEK_END)
+            tail = f.read()
+            f.seek(0)
+            f.write(("[журнал укорочен %s — начало отброшено, "
+                     "оставлены последние %d КБ]\n"
+                     % (datetime.now().astimezone().isoformat(timespec="seconds"),
+                        keep // 1000)).encode("utf-8"))
+            f.write(tail)
+            f.truncate()
+        return True
+    except OSError:
+        return False
+
+
 def write_stamp(payload, path=None):
     """Отметка последнего сбора — по ней доктор видит, что таймер работает.
 
@@ -426,6 +463,8 @@ def main():
             if sys.stderr.isatty():
                 print("сбор уже идёт — выхожу", file=sys.stderr)
             return 0
+
+        trim_log()
 
     started_at = time.time()
 

@@ -461,6 +461,28 @@ class TestTurnsCollect(Base):
             self.assertEqual(json.load(f)["seen"], 7)
         self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
 
+    def test_log_is_trimmed_from_the_head(self):
+        """Журнал таймера режется на месте: хвост остаётся, начало уходит."""
+        path = os.path.join(self.dir, "turns-collect.log")
+        with open(path, "w", encoding="utf-8") as f:
+            for i in range(40000):
+                f.write("строка журнала номер %d\n" % i)
+        self.assertGreater(os.path.getsize(path), 1_000_000)
+        inode = os.stat(path).st_ino
+
+        self.assertTrue(self.tc.trim_log(path))
+        self.assertLess(os.path.getsize(path), 600_000)
+        self.assertEqual(os.stat(path).st_ino, inode,
+                         "служба держит этот файл открытым — inode менять нельзя")
+        lines = open(path, encoding="utf-8").read().splitlines()
+        self.assertIn("начало отброшено", lines[0])
+        self.assertEqual(lines[-1], "строка журнала номер 39999")
+
+        self.assertFalse(self.tc.trim_log(path), "короткий журнал не трогаем")
+
+    def test_missing_log_is_not_an_error(self):
+        self.assertFalse(self.tc.trim_log(os.path.join(self.dir, "нет.log")))
+
     def test_broken_line_is_skipped(self):
         with open(self.path, "w", encoding="utf-8") as f:
             f.write(json.dumps({
