@@ -290,6 +290,26 @@ def iter_turns(path):
         yield cur
 
 
+def idem_key(turn, path, used):
+    """Ключ повтора: пара «сессия + promptId», а для субагента ещё и файл.
+
+    Транскрипт субагента наследует sessionId И promptId родителя. Ключ из
+    одной этой пары складывал в одну строку ход старшей и работу всех её
+    агентов: в живой проверке 24 хода из 66 были молча отброшены как дубли —
+    вместе со своей ценой, а это самая дорогая часть дня. Дубль внутри учёта
+    страшнее пропуска ровно тем, что выглядит как порядок.
+
+    Счётчик на конце нужен для файла субагента, продолженного второй задачей.
+    Порядок обхода детерминирован, поэтому повторный прогон даёт те же ключи.
+    """
+    base = "cc:%s:%s" % (turn.session_id or os.path.basename(path),
+                         turn.prompt_id or turn.started)
+    if "/subagents/" in path or turn.sidechain:
+        base += ":" + os.path.splitext(os.path.basename(path))[0]
+    used[base] += 1
+    return base if used[base] == 1 else "%s#%d" % (base, used[base])
+
+
 def transcripts(project=None, session=None):
     if session:
         for root, _dirs, names in os.walk(PROJECTS):
@@ -337,6 +357,7 @@ def main():
             - timedelta(days=args.days - 1)).strftime("%Y-%m-%d")
     con = None if args.dry_run else records.open_turns(args.db)
     written = skipped = seen = 0
+    used = Counter()
     shown = []
     per_day = Counter()
     money = 0.0
@@ -358,8 +379,7 @@ def main():
                 usd, basis = turn.cost()
                 money += usd or 0
                 ch = turn.channel
-                key = "cc:%s:%s" % (turn.session_id or os.path.basename(path),
-                                    turn.prompt_id or turn.started)
+                key = idem_key(turn, path, used)
                 meta = {
                     "transcript": path,
                     "kind": turn.kind,

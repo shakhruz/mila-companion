@@ -413,6 +413,31 @@ class TestTurnsCollect(Base):
         usd, _basis = turns[0].cost()
         self.assertAlmostEqual(usd, 15.0 + 0.8, places=4)
 
+    def test_subagent_turn_gets_its_own_key(self):
+        """Транскрипт субагента наследует sessionId и promptId родителя.
+
+        Ключ без имени файла складывал ход старшей и работу её агентов в одну
+        строку: в живой проверке 24 хода из 66 молча исчезли вместе с ценой.
+        """
+        from collections import Counter
+        rows = [
+            {"type": "user", "timestamp": "2026-09-10T05:00:00.000Z",
+             "promptId": "p1", "sessionId": "s1",
+             "message": {"role": "user", "content": "сделай"}},
+            _asst("2026-09-10T05:00:01.000Z", "m1", "r1", "claude-opus-5",
+                  [{"type": "text", "text": "ок"}], _usage(o=1)),
+        ]
+        turns = self.write(rows)
+        used = Counter()
+        main = self.tc.idem_key(turns[0], "/p/s1.jsonl", used)
+        sub = self.tc.idem_key(turns[0], "/p/s1/subagents/agent-a1.jsonl", used)
+        sub2 = self.tc.idem_key(turns[0], "/p/s1/subagents/agent-a2.jsonl", used)
+        self.assertEqual(len({main, sub, sub2}), 3)
+        self.assertIn("agent-a1", sub)
+        # тот же файл со вторым ходом того же promptId — счётчик на конце
+        again = self.tc.idem_key(turns[0], "/p/s1/subagents/agent-a1.jsonl", used)
+        self.assertNotEqual(again, sub)
+
     def test_broken_line_is_skipped(self):
         with open(self.path, "w", encoding="utf-8") as f:
             f.write(json.dumps({
