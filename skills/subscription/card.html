@@ -1,0 +1,16 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><style>
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&display=swap');
+body{margin:0;width:1200px;background:linear-gradient(160deg,#0E5A6B,#083b47);font-family:Manrope,system-ui,sans-serif;color:#EAF3F2;padding:36px 40px;box-sizing:border-box}
+h1{margin:0 0 4px;font-size:34px;font-weight:800}h1 span{color:#FFD23F}.sub{color:#BFD5D2;font-size:15px;margin-bottom:22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:22px}.card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:22px 24px}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}.k{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:#FFD23F}
+h2{margin:2px 0 4px;font-size:28px;font-weight:800}h2 small{font-size:14px;color:#BFD5D2;font-weight:500;margin-left:8px}.who{font-size:13px;color:#BFD5D2}.st{font-size:14px;font-weight:700;white-space:nowrap;margin-top:6px}
+.r{display:grid;grid-template-columns:110px 1fr 58px 96px;align-items:center;gap:12px;margin:9px 0;font-size:15px}.bar{height:14px;background:rgba(255,255,255,.12);border-radius:7px;overflow:hidden}.bar i{display:block;height:100%;border-radius:7px}.p{font-weight:800;text-align:right}.w{color:#BFD5D2;font-size:13px}
+.resets{display:flex;gap:14px;margin-top:14px}.rs{flex:1;background:rgba(0,0,0,.18);border-radius:12px;padding:10px 12px;font-size:12px;color:#BFD5D2}.rs b{display:block;color:#fff;font-size:16px;margin:2px 0}.rs em{font-style:normal;color:#FFD23F;font-weight:700}
+.warn{margin-top:12px;font-size:13px;color:#FFD23F;font-weight:700}.ok{margin-top:12px;font-size:13px;color:#8FE3B5;font-weight:700}
+table{width:100%;border-collapse:collapse;margin-top:22px;font-size:15px}th{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#FFD23F;text-align:left;padding:6px 10px}td{padding:10px;border-top:1px solid rgba(255,255,255,.12)}
+.adv{margin-top:16px;font-size:16px;font-weight:700;color:#FFD23F}.ft{margin-top:14px;font-size:12px;color:#8FB3B0;display:flex;justify-content:space-between}
+</style></head><body><h1>Подписки <span>Claude</span></h1><div class="sub">подписок: @@N@@ · агенты на них · время местное</div>
+<div class="grid">@@CARDS@@</div>
+<table><tr><th>Агент</th><th>Подписка</th><th>Неделя</th><th>Сильная модель</th><th>Состояние</th></tr>@@TRS@@</table>
+<div class="adv">@@ADV@@</div><div class="ft"><span>снято @@TS@@</span><span>/usage · /usage all · /usage watch on|off</span></div></body></html>

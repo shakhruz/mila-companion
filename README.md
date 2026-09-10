@@ -57,6 +57,7 @@ Two things are deliberately separate from this repository:
 | `skills/tasks-discipline` | For a client-facing director: a named deadline becomes a task, not a phrase; take it, do it, report with proof. |
 | `skills/mail-outbound` | Letters leave in two steps (draft → human's tap → send); an address found by search is a hypothesis until checked; no invented contacts. |
 | `skills/crm-dialogs`, `inbox-triage`, `lead-qualify`, `reply-from-examples`, `polite-no`, `escalate-to-owner`, `dialog-close` | The communicator set for a director: triage the inbox in one pass, qualify a lead, draft from the owner's own examples, decline without discounts, escalate with one card, close a dialog with a stated reason. |
+| `skills/subscription` | Subscription state for the owner: five-hour and weekly windows, per-model limits, reset countdowns, burn-rate forecast; `/usage`, `/usage all`, `/usage watch on|off` in the bot, a rich-media card (Chrome or a shared PNG from the senior), an hourly watcher that warns before the wall. |
 | `skills/youtube-research` | Research a topic through YouTube transcripts before writing about it. |
 | `install/mila` | One-word launcher: `mila` resumes, `mila new` starts fresh, `mila status` checks the channel, `mila inbox` shows unread messages. |
 | `install/telegram-inbox-feed.py` | Hook that surfaces incoming Telegram messages in the terminal — and any promise whose deadline is today or past. |

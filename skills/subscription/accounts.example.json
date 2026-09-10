@@ -1,0 +1,8 @@
+{
+ "_": "Подписки, за которыми следит агент. name — как назвать в отчёте; credentials — файл входа Claude Code; env — имя переменной с токеном; report — готовый --json другого агента (чужой вход к нам не приезжает); agent — кто на этой подписке работает (для таблицы на картинке). card — общий PNG-дэшборд от старшей для контейнеров без Chrome.",
+ "accounts": [
+  {"name": "Owner", "credentials": "~/.claude/.credentials.json", "agent": "Companion"},
+  {"name": "Senior", "report": "/home/companion/state/subscription-senior.json", "agent": "Mila Admin"}
+ ],
+ "card": {"path": "/home/companion/state/subscription-card.png", "max_age_min": 75}
+}
