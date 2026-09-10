@@ -243,8 +243,9 @@ user timer on a server. Not on the hour: the minute is derived from the hostname
 and lands between :10 and :49, because everyone else's crons sit at the top and
 the bottom, and a collector firing in the same second as one records a turn that
 is still in flight as a failure. Overlap is safe — a `flock` next to the database
-means a second collector exits quietly. `MILA_TURNS_MINUTE` and `MILA_AGENT`
-override the defaults.
+means a second collector exits quietly. The log trims itself: past 1 MB it keeps
+the last 500 KB and says so in the first line, so nobody hunts for the missing
+beginning. `MILA_TURNS_MINUTE` and `MILA_AGENT` override the defaults.
 
 `mila doctor` checks all of it: both databases present, schema complete, still
 being written to, not shrinking — the last one compared against the previous
