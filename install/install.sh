@@ -83,6 +83,104 @@ for f in usage_collect.py turns_collect.py records.py chats_index.py \
   fi
 done
 
+# ── hourly turn collection ────────────────────────────────────────────────
+# The books are only worth keeping if they are kept as the day happens. Collected
+# once a night, a turn has lost the conversation that produced it — and the point
+# of the table is to be able to ask, by the evening, which question cost what.
+#
+# Not on the hour. Every other timer on these machines fires at :00, and a
+# collector that runs in the same second as a cron job records a turn that is
+# still in flight as a failure. The minute is derived from the hostname, so the
+# fleet spreads itself across the hour instead of stampeding — override with
+# MILA_TURNS_MINUTE if you need a specific one.
+echo "Hourly turn collection"
+TURNS_MIN="${MILA_TURNS_MINUTE:-}"
+if [[ -z "$TURNS_MIN" ]]; then
+  # 10..49: the top and the bottom of the hour is where everyone else's crons
+  # already sit, and :00 is where the daily briefs fire.
+  TURNS_MIN=$(python3 -c 'import hashlib,socket;print(10+int(hashlib.sha1(socket.gethostname().encode()).hexdigest(),16)%40)')
+fi
+PY_BIN="$(command -v python3 || echo /usr/bin/python3)"
+COLLECT="$HOOK_DIR/turns_collect.py"
+LOG_FILE="$CLAUDE_DIR/turns-collect.log"
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  LABEL="com.milagpt.turns-collect"
+  PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+  if [[ $DRY -eq 1 ]]; then
+    say "would: write $PLIST (every hour at :$(printf '%02d' "$TURNS_MIN"))"
+  else
+    mkdir -p "$HOME/Library/LaunchAgents"
+    cat > "$PLIST" <<PLISTEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$PY_BIN</string>
+    <string>$COLLECT</string>
+    <string>--days</string><string>1</string>
+    <string>--quiet</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict><key>Minute</key><integer>$TURNS_MIN</integer></dict>
+  <key>EnvironmentVariables</key>
+  <dict><key>MILA_AGENT</key><string>${MILA_AGENT:-companion}</string></dict>
+  <key>StandardOutPath</key><string>$LOG_FILE</string>
+  <key>StandardErrorPath</key><string>$LOG_FILE</string>
+  <key>RunAtLoad</key><false/>
+</dict>
+</plist>
+PLISTEOF
+    chmod 644 "$PLIST"
+    launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+    launchctl bootstrap "gui/$(id -u)" "$PLIST" 2>/dev/null \
+      || launchctl load -w "$PLIST" 2>/dev/null || true
+    say "$LABEL — every hour at :$(printf '%02d' "$TURNS_MIN")"
+  fi
+elif command -v systemctl >/dev/null 2>&1; then
+  UNITS="$HOME/.config/systemd/user"
+  if [[ $DRY -eq 1 ]]; then
+    say "would: write $UNITS/mila-turns-collect.{service,timer} (:$(printf '%02d' "$TURNS_MIN"))"
+  else
+    mkdir -p "$UNITS"
+    cat > "$UNITS/mila-turns-collect.service" <<UNITEOF
+[Unit]
+Description=Mila Companion — collect turns into conversations.db
+
+[Service]
+Type=oneshot
+# Имя агента должно совпадать с тем, под которым ходы пишутся руками, иначе
+# один и тот же Компаньон разъезжается в отчёте на две строки.
+Environment=MILA_AGENT=${MILA_AGENT:-companion}
+ExecStart=$PY_BIN $COLLECT --days 1 --quiet
+UNITEOF
+    cat > "$UNITS/mila-turns-collect.timer" <<UNITEOF
+[Unit]
+Description=Mila Companion — hourly turn collection
+
+[Timer]
+OnCalendar=*:$(printf '%02d' "$TURNS_MIN")
+# Persistent catches up after the machine was asleep: a missed hour is a hole
+# in the books, and holes are noticed only when someone asks about that day.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNITEOF
+    chmod 644 "$UNITS"/mila-turns-collect.*
+    systemctl --user daemon-reload 2>/dev/null || true
+    systemctl --user enable --now mila-turns-collect.timer 2>/dev/null \
+      && say "mila-turns-collect.timer — every hour at :$(printf '%02d' "$TURNS_MIN")" \
+      || say "NOTE: could not enable the timer — run: systemctl --user enable --now mila-turns-collect.timer"
+  fi
+else
+  say "NOTE: neither launchd nor systemd found — run \`mila turns\` from your own scheduler"
+fi
+echo
+
 # The permission policy decides what runs without waking anyone. With no file
 # at all the code falls back to STRICT — every single tool call becomes a card
 # in Telegram, and past twelve a minute they are auto-denied. A first evening
