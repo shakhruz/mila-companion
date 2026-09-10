@@ -82,6 +82,20 @@ AGENT_KINDS = ("director", "companion", "admin")
 PAID_BY = ("subscription", "api_key")
 
 
+def plural(n, one, few, many):
+    """«1 ход», «2 хода», «66 ходов». Отчёт, который пишет «1 вызовов»,
+    читается как машинный, и его перестают читать вовсе."""
+    n = abs(int(n))
+    if 11 <= n % 100 <= 14:
+        return many
+    tail = n % 10
+    if tail == 1:
+        return one
+    if 2 <= tail <= 4:
+        return few
+    return many
+
+
 def text_policy():
     """Выключатель текстов. Незнакомое значение — не повод писать всё подряд."""
     p = (os.environ.get("MILA_RECORD_TEXT") or "full").strip().lower()
