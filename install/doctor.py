@@ -276,6 +276,66 @@ def check_perms(rep):
             rep.add(OK, "права", "%s — %o" % (name, mode))
 
 
+TURNS_LABEL = "com.milagpt.turns-collect"
+TURNS_UNIT = "mila-turns-collect.timer"
+
+
+def timer_installed():
+    """(стоит ли, чем именно). Спрашиваем ту службу, что есть на машине."""
+    try:
+        if sys.platform == "darwin":
+            r = subprocess.run(["launchctl", "list", TURNS_LABEL],
+                               capture_output=True, text=True, timeout=8)
+            return r.returncode == 0, "launchd " + TURNS_LABEL
+        r = subprocess.run(["systemctl", "--user", "is-enabled", TURNS_UNIT],
+                           capture_output=True, text=True, timeout=8)
+        return r.returncode == 0, "systemd " + TURNS_UNIT
+    except Exception:
+        return False, ""
+
+
+def check_turns_timer(rep):
+    """Часовой сбор: стоит ли таймер и отработал ли он за последние два часа.
+
+    Две проверки, а не одна: загруженный таймер, который падает на старте,
+    выглядит здоровым в любом списке служб, а отметка о сборе без таймера
+    означает, что кто-то собрал руками один раз и на этом успокоился.
+    """
+    on, how = timer_installed()
+    if on:
+        rep.add(OK, "учёт · таймер", "стоит (%s)" % how)
+    else:
+        rep.add(WARN, "учёт · таймер", "не стоит",
+                "без него таблица наполняется только руками. Поставь: "
+                "install/install.sh — таймер идёт вместе с китом, раз в час "
+                "со смещением от ровного часа")
+
+    try:
+        import records
+        path = os.path.join(records.RECORDS_DIR, "turns-collect-last.json")
+        with open(path, encoding="utf-8") as f:
+            last = json.load(f)
+    except (OSError, ValueError, ImportError):
+        if on:
+            rep.add(WARN, "учёт · сбор", "ни разу не отрабатывал",
+                    "таймер стоит, но следа работы нет — запусти руками "
+                    "`mila turns` и посмотри %s/turns-collect.log"
+                    % os.path.expanduser("~/.claude"))
+        return
+
+    age_h = (time.time() - (last.get("finished_ts") or 0)) / 3600.0
+    detail = ("последний %s, за %.0f с · найдено %d, записано %d"
+              % (str(last.get("finished_at"))[:19].replace("T", " "),
+                 last.get("took_sec") or 0, last.get("seen") or 0,
+                 last.get("written") or 0))
+    if age_h > 2:
+        rep.add(WARN, "учёт · сбор", "%.0f ч назад — %s" % (age_h, detail),
+                "должен отрабатывать раз в час. Смотри "
+                "~/.claude/turns-collect.log; на выключенной машине это норма")
+    else:
+        rep.add(OK, "учёт · сбор", detail)
+
+
 def check_records(rep):
     """Учёт: обе базы на месте, схема полная, пишутся и не пустеют.
 
@@ -343,6 +403,8 @@ def check_records(rep):
                 "%d %s%s" % (e["rows"],
                              records.plural(e["rows"], "вызов", "вызова", "вызовов"),
                              "" if e["rows"] else " — наружу пока не ходим"))
+
+    check_turns_timer(rep)
 
     if st["shrunk"]:
         rep.add(BAD, "учёт", "база усохла: %s" % "; ".join(st["shrunk"]),
