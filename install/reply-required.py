@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""reply-required.py — Stop-хук Компаньона (12.09.2026, дефект первого клиентского Компаньона).
+"""reply-required.py — Stop-хук Компаньона (12.09.2026, дефект клиентского компаньона).
 
 Хозяин читает Telegram, а не терминал. Если последнее сообщение хозяина пришло
 конвертом <channel …>, а с тех пор сессия ни разу не вызвала инструмент reply
@@ -40,7 +40,9 @@ def main():
         if r.get("type") == "user" and m.get("role") == "user":
             s = c if isinstance(c, str) else " ".join(
                 (x.get("text", "") if isinstance(x, dict) else str(x)) for x in (c or []))
-            if "<channel" in s and "source=\"telegram\"" in s:
+            # REACTION-SKIP-0923: реакция (👍, ❤) — не вопрос, ответа не требует (просьба МилаК Качество, dev 6044)
+            is_reaction = "type=\"reaction\"" in s or "[реакция]" in s
+            if "<channel" in s and "source=\"telegram\"" in s and not is_reaction:
                 last_channel_idx = i
                 j = s.find("chat_id=\"")
                 if j >= 0:
@@ -49,6 +51,16 @@ def main():
             for x in c:
                 if isinstance(x, dict) and x.get("type") == "tool_use" and "telegram__reply" in str(x.get("name", "")):
                     last_reply_idx = i
+    # REPLY-ALLOWED-0922: в неутверждённый чат отправить нельзя — не требуем reply
+    if chat_id:
+        try:
+            import os as _os
+            _acc = json.load(open(_os.path.expanduser("~/.claude/channels/telegram/access.json"), encoding="utf-8"))
+            _ok = {str(k) for k in (_acc.get("groups") or {}).keys()} | {str(x) for x in (_acc.get("allowFrom") or [])}
+            if _ok and chat_id not in _ok:
+                return 0
+        except Exception:
+            pass
     if last_channel_idx >= 0 and last_reply_idx < last_channel_idx:
         reason = ("Ответ хозяину НЕ отправлен: он читает Telegram, а не этот текст. Вызови инструмент "
                   "mcp__plugin_mila-telegram_telegram__reply с chat_id=\"%s\" и текстом ответа "
