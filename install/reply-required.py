@@ -61,10 +61,35 @@ def main():
                 return 0
         except Exception:
             pass
+    # ADDRESSED-ELSEWHERE-0923 (заявка клиентского компаньона): сообщение с @-упоминаниями, среди которых нет
+    # моего бота, адресовано другому — не требуем reply (иначе второй голос в чате, где ведёт другой).
+    # И осознанная тишина: последний текст хода с меткой [[silent]] — тоже не блокируем.
     if last_channel_idx >= 0 and last_reply_idx < last_channel_idx:
-        reason = ("Ответ хозяину НЕ отправлен: он читает Telegram, а не этот текст. Вызови инструмент "
+        try:
+            import os as _os2, re as _re2
+            me = (_os2.environ.get("BOT_USERNAME") or "").lstrip("@").lower()
+            last_in = lines[last_channel_idx]
+            body = json.loads(last_in).get("message", {}).get("content")
+            body = body if isinstance(body, str) else " ".join(
+                (x.get("text", "") if isinstance(x, dict) else str(x)) for x in (body or []))
+            inner = body.split(">", 1)[1] if ">" in body else body
+            mentions = {m.lower() for m in _re2.findall(r"@([A-Za-z0-9_]{5,})", inner)}
+            if me and mentions and me not in mentions:
+                return 0
+            for ln in reversed(lines[last_channel_idx:]):
+                r2 = json.loads(ln)
+                if r2.get("type") == "assistant":
+                    c2 = (r2.get("message") or {}).get("content")
+                    txt = " ".join(x.get("text", "") for x in (c2 or []) if isinstance(x, dict) and x.get("type") == "text") if isinstance(c2, list) else str(c2 or "")
+                    if "[[silent]]" in txt:
+                        return 0
+                    break
+        except Exception:
+            pass
+    if last_channel_idx >= 0 and last_reply_idx < last_channel_idx:
+        reason = ("Ответ в чат НЕ отправлен: человек читает Telegram, а не этот текст. Вызови инструмент "
                   "mcp__plugin_mila-telegram_telegram__reply с chat_id=\"%s\" и текстом ответа "
-                  "(одно сообщение, до 1000 знаков). Если ответить нечем — reply с одной строкой, что делаешь."
+                  "(одно сообщение, до 1000 знаков). Если ответить нечем — reply с одной строкой, что делаешь. Если молчать правильно (ведёт другой исполнитель) — закончи ход текстом с меткой [[silent]]."
                   % (chat_id or "<из тега channel>"))
         print(json.dumps({"decision": "block", "reason": reason}, ensure_ascii=False))
     return 0
