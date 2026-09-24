@@ -93,6 +93,24 @@ def main():
         except Exception:
             pass
     if last_channel_idx >= 0 and last_reply_idx < last_channel_idx:
+        # SILENT-LATE-WRITE-0924 (заявка Милы Качество, dev 6270): хук стартует на 47–49 мс раньше,
+        # чем последний текст хода допишется в транскрипт, и [[silent]] не виден. Сначала смотрим
+        # текст хода из входа хука (если Claude Code его даёт), потом перечитываем транскрипт.
+        if "[[silent]]" in str(data.get("last_assistant_message") or ""):
+            return 0
+        try:
+            import time as _t
+            _t.sleep(0.4)
+            for ln in open(path, encoding="utf-8").read().splitlines()[last_channel_idx:]:
+                try:
+                    r3 = json.loads(ln)
+                except Exception:
+                    continue
+                if r3.get("type") == "assistant" and "[[silent]]" in json.dumps(
+                        (r3.get("message") or {}).get("content"), ensure_ascii=False):
+                    return 0
+        except Exception:
+            pass
         reason = ("Ответ в чат НЕ отправлен: человек читает Telegram, а не этот текст. Вызови инструмент "
                   "mcp__plugin_mila-telegram_telegram__reply с chat_id=\"%s\" и текстом ответа "
                   "(одно сообщение, до 1000 знаков). Если ответить нечем — reply с одной строкой, что делаешь. Если молчать правильно (ведёт другой исполнитель) — закончи ход текстом с меткой [[silent]]."
