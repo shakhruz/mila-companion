@@ -78,14 +78,18 @@ def main():
             mentions = {m.lower() for m in _re2.findall(r"@([A-Za-z0-9_]{5,})", inner)}
             if me and mentions and me not in mentions:
                 return 0
-            for ln in reversed(lines[last_channel_idx:]):
-                r2 = json.loads(ln)
+            # SILENT-WHOLE-TURN-0924 (заявка Милы Качество): метку ищем во всех текстах хода, не только в последнем —
+            # после [[silent]] модель часто делает ещё шаг (запись в журнал), и последняя запись уже без метки.
+            for ln in lines[last_channel_idx:]:
+                try:
+                    r2 = json.loads(ln)
+                except Exception:
+                    continue
                 if r2.get("type") == "assistant":
                     c2 = (r2.get("message") or {}).get("content")
                     txt = " ".join(x.get("text", "") for x in (c2 or []) if isinstance(x, dict) and x.get("type") == "text") if isinstance(c2, list) else str(c2 or "")
                     if "[[silent]]" in txt:
                         return 0
-                    break
         except Exception:
             pass
     if last_channel_idx >= 0 and last_reply_idx < last_channel_idx:
