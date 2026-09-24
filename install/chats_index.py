@@ -40,6 +40,7 @@ MODE_LABEL = {
     "all": "отвечаю всем",
     "mention": "по упоминанию",
     "read": "только читаю",
+    "observe": "наблюдатель: читаю всё, говорю когда позовут",
 }
 
 
@@ -57,6 +58,8 @@ def mode_of(policy):
         return "all"
     if policy.get("readOnly"):
         return "read"
+    if policy.get("observe"):
+        return "observe"
     return "mention" if policy.get("requireMention") else "all"
 
 

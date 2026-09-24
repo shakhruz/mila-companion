@@ -196,7 +196,7 @@ def check_access(rep):
 
     loud = [g for g, p in groups.items()
             if isinstance(p, dict) and p.get("requireMention") is False
-            and not p.get("readOnly")]
+            and not p.get("readOnly") and not p.get("observe")]
     if loud:
         rep.add(WARN, "группы",
                 "%d в режиме «отвечать всем»" % len(loud),

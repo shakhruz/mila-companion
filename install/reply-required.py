@@ -42,7 +42,9 @@ def main():
                 (x.get("text", "") if isinstance(x, dict) else str(x)) for x in (c or []))
             # REACTION-SKIP-0923: реакция (👍, ❤) — не вопрос, ответа не требует (просьба МилаК Качество, dev 6044)
             is_reaction = "type=\"reaction\"" in s or "[реакция]" in s
-            if "<channel" in s and "source=\"telegram\"" in s and not is_reaction:
+            # OBSERVE-0924: в режиме «наблюдатель» сообщение, где бота не звали, ответа не требует
+            is_observe = "observe_only=\"true\"" in s
+            if "<channel" in s and "source=\"telegram\"" in s and not is_reaction and not is_observe:
                 last_channel_idx = i
                 j = s.find("chat_id=\"")
                 if j >= 0:
