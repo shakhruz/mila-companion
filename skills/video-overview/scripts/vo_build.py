@@ -10,6 +10,7 @@
     vo_build.py compose scenario.json WORKDIR  проекты HyperFrames на каждый формат + .srt + главы
                                                + заявки в очередь рендера (mp4 и обложка png)
     vo_build.py all     scenario.json WORKDIR  voice → images → compose
+    --redo 16:9:2,9:16:5   перерисовать только эти картинки (готовые не трогаются, деньги зря не уходят)
 
 WORKDIR должен лежать внутри ~/work (очередь берёт пути от ~/work). Формат сценария — SKILL.md.
 """
@@ -127,7 +128,8 @@ def cmd_voice(sc, wd):
 def sketch_prompt(sc, s, aspect):
     lines = [SKETCH_STYLE, "",
              "Aspect: %s %s." % (aspect, "vertical" if aspect == "9:16" else "horizontal"),
-             "Keep the lower 22%% of the frame calm and empty (plain paper) — subtitles go there.",
+             "Place the headline at the TOP of the frame. Keep the lower 22% of the frame calm and empty "
+             "(plain paper, no text, no drawings) — subtitles go there.",
              "", s.get("visual") or ("A clear explanatory illustration of: " + s.get("headline", s["say"][:120]))]
     if s.get("headline"):
         lang = {"ru": "Russian Cyrillic", "uz-cyrl": "Uzbek Cyrillic", "uz": "Uzbek Latin", "en": "English"}.get(sc["lang"], sc["lang"])
@@ -135,10 +137,14 @@ def sketch_prompt(sc, s, aspect):
                   '- HEADLINE: "%s"' % s["headline"]]
         for p in (s.get("labels") or [])[:4]:
             lines.append('- label: "%s"' % p)
+    lines += ["", "STRICT: no other words anywhere in the image — no extra captions, notes, labels on objects, "
+              "title blocks, signatures, names, dates, figure numbers or scale marks with text. "
+              "If an object would normally carry text, leave it blank. Count of drawn objects must match "
+              "the description exactly."]
     return "\n".join(lines)
 
 
-def cmd_images(sc, wd):
+def cmd_images(sc, wd, redo=()):
     if sc["style"] != "sketch":
         print("стиль %s — картинки не нужны, кадры вёрстаются HTML" % sc["style"])
         return
@@ -152,7 +158,10 @@ def cmd_images(sc, wd):
             out = os.path.join(d, "s%02d.png" % s["n"])
             p = sketch_prompt(sc, s, a)
             kf = out + ".key"
-            if os.path.exists(out) and os.path.exists(kf) and open(kf).read() == key(p, model):
+            if os.path.exists(out) and "%s:%d" % (a, s["n"]) not in redo:
+                if not os.path.exists(kf) or open(kf).read() != key(p, model):
+                    print("🟡 сцена %d %s: промпт изменился, картинка старая — перегенерировать: --redo %s:%d"
+                          % (s["n"], a, a, s["n"]))
                 continue
             r = subprocess.run(["python3", GENIMAGE, "--prompt", p, "--model", model, "--size", a,
                                 "--quality", "2K", "--out", out], capture_output=True, text=True)
@@ -168,8 +177,14 @@ def chunks(text, maxc):
     out, cur = [], ""
     for w in text.split():
         if cur and len(cur) + 1 + len(w) > maxc:
-            out.append(cur)
-            cur = w
+            # короткий предлог или союз в конце куска («о», «и», «в», «на») переносим в следующий
+            tail = cur.rsplit(" ", 1)
+            if len(tail) == 2 and len(tail[1]) <= 2 and not re.search(r"[.,!?…:;]$", tail[1]):
+                out.append(tail[0])
+                cur = tail[1] + " " + w
+            else:
+                out.append(cur)
+                cur = w
         else:
             cur = (cur + " " + w).strip()
         if re.search(r"[.!?…]$", w) and len(cur) > maxc * 0.45:
@@ -246,12 +261,14 @@ html,body{width:%(w)dpx;height:%(h)dpx;overflow:hidden;background:%(bg1)s}
 .end-card .cta{display:inline-block;margin-top:48px;background:%(accent)s;color:%(bg1)s;font:800 %(cfs)dpx/1 'Montserrat',sans-serif;
   padding:26px 40px;border-radius:999px;align-self:flex-start}
 .sketch .sub span{background:rgba(22,48,45,.82)}
+.sketch .chapter{top:auto;bottom:%(chb)dpx}
+.sketch-root .brandmark{color:#16302d}
 """ % dict(p, w=w, h=h, gw=w, gh=h, padx=90 if v else 140,
            ktop=260 if v else 120, kfs=34 if v else 30, htop=330 if v else 180, hfs=86 if v else 92,
            ptop=90 if v else 70, pfs=46 if v else 44, pgap=30 if v else 24, pind=52 if v else 48, dot=20 if v else 18,
            sbot=360 if v else 70, sw=w - (120 if v else 320), shw=(w - (120 if v else 320)) // 2,
            sfs=46 if v else 44, spy=12, spx=22, ctop=150 if v else 60, cfs=34 if v else 30,
-           bmb=250 if v else 36, bfs=28 if v else 26, tfs=104 if v else 110, tsub=44 if v else 42)
+           bmb=250 if v else 36, chb=470 if v else 160, bfs=28 if v else 26, tfs=104 if v else 110, tsub=44 if v else 42)
 
 
 def compose_one(sc, wd, aspect, rows, total):
@@ -342,7 +359,7 @@ def compose_one(sc, wd, aspect, rows, total):
 <style>%(css)s</style>
 </head>
 <body>
-  <div id="root" data-composition-id="main" data-start="0" data-width="%(w)d" data-height="%(h)d" data-duration="%(total)s">
+  <div id="root" class="%(rootcls)s" data-composition-id="main" data-start="0" data-width="%(w)d" data-height="%(h)d" data-duration="%(total)s">
     <div id="bar" class="bar"></div>
     <div class="brandmark">%(mark)s</div>
     %(body)s
@@ -356,7 +373,7 @@ def compose_one(sc, wd, aspect, rows, total):
 </html>
 """ % {"lang": sc["lang"][:2], "w": w, "h": h, "title": esc(sc["title"]), "css": build_css(sc, aspect),
        "total": total, "mark": esc(brand.get("handle", "MILAGPT")), "body": "\n    ".join(body),
-       "js": "\n    ".join(js)}
+       "js": "\n    ".join(js), "rootcls": "sketch-root" if sketch else ""}
     open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(doc)
     open(os.path.join(out, "subtitles.srt"), "w", encoding="utf-8").write("\n".join(srt))
     open(os.path.join(out, "chapters.txt"), "w", encoding="utf-8").write("\n".join(chap) + "\n")
@@ -383,7 +400,9 @@ def queue(sc, out, aspect, chat):
     os.makedirs(QUEUE, exist_ok=True)
     name = "%s-%s" % (sc["name"], aslug(aspect))
     w, h = SIZES[aspect]
-    jobs = {name: {"project": rel, "output": rel + "/" + name + ".mp4", "quality": "standard"},
+    # crf 28: ролик 80 с ≈ 10–20 МБ — лезет в Telegram; для YouTube-мастера поставьте "crf": 20 в сценарии
+    jobs = {name: {"project": rel, "output": rel + "/" + name + ".mp4", "quality": "standard",
+                   "crf": int(sc.get("crf", 28))},
             name + "-cover": {"project": rel, "html": "cover.html", "format": "png", "width": w, "height": h,
                               "output": rel + "/" + name + "-cover.png"}}
     for jn, j in jobs.items():
@@ -418,8 +437,9 @@ def main(a):
     chat = a[a.index("--chat") + 1] if "--chat" in a else None
     if a[0] in ("voice", "all"):
         cmd_voice(sc, wd)
+    redo = set(a[a.index("--redo") + 1].split(",")) if "--redo" in a else set()
     if a[0] in ("images", "all"):
-        cmd_images(sc, wd)
+        cmd_images(sc, wd, redo)
     if a[0] in ("compose", "all"):
         cmd_compose(sc, wd, chat)
 
