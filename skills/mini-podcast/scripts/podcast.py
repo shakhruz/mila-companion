@@ -14,7 +14,7 @@ script.json — список реплик: [{"speaker": "Надя", "voice": "<v
 Ключ: переменная ELEVENLABS_API_KEY или файл --key-file (по умолчанию ~/work/secrets/elevenlabs.key). Не печатается.
 Только stdlib + ffmpeg/ffprobe.
 """
-import json, os, re, subprocess, sys, tempfile, urllib.request
+import json, os, re, shutil, subprocess, sys, tempfile, urllib.request
 
 API = "https://api.elevenlabs.io/v1/text-to-dialogue?output_format=mp3_44100_128"
 LIMIT = 1900
@@ -88,7 +88,7 @@ def main(a):
         files.append(f)
         print("кусок %d готов, %d знаков" % (n, sum(len(i["text"]) for i in part)))
     if len(files) == 1:
-        os.replace(files[0], out)
+        shutil.move(files[0], out)  # tmp и ~/work на разных разделах — os.replace падает
     else:
         lst = os.path.join(tmp, "list.txt")
         open(lst, "w").write("".join("file '%s'\n" % f for f in files))
