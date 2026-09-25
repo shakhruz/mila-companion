@@ -26,9 +26,14 @@
   .cross::after{top:19px;left:0;height:1.5px;width:40px}
   .c1{right:70px;top:70px}.c2{left:66px;bottom:150px}
   svg.frame{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-  .n{position:absolute;left:112px;top:84px;font-family:Caveat,cursive;font-size:44px;color:var(--lead)}
-  .kicker{position:absolute;left:112px;right:170px;top:146px;font-size:25px;font-weight:700;
-    letter-spacing:.12em;color:var(--teal)}
+  /* CARD-V2-0925: каталожная карточка — значок типа, двойная линия шапки, линовка поля */
+  .glyph{position:absolute;left:100px;top:70px;width:118px;height:118px}
+  .glyph path,.glyph circle{fill:none;stroke:var(--graphite);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .glyph .t{stroke:var(--teal)}
+  .n{position:absolute;left:240px;top:80px;font-family:Caveat,cursive;font-size:44px;color:var(--lead)}
+  .kicker{position:absolute;left:240px;right:260px;top:140px;font-size:27px;font-weight:700;line-height:1.2;color:var(--teal)}
+  .rules{position:absolute;left:92px;right:88px;top:262px;bottom:112px;
+    background:repeating-linear-gradient(transparent 0 71px,rgba(47,107,102,.13) 71px 73px)}
   .type{position:absolute;right:92px;top:132px;font-family:Caveat,cursive;font-size:40px;color:var(--sepia);
     padding:2px 22px;border:2.5px solid var(--sepia);border-radius:48% 52% 45% 55%/55% 45% 55% 45%;transform:rotate(-3deg)}
   .dots{position:absolute;right:104px;top:204px;display:flex;gap:10px}
@@ -62,10 +67,13 @@
     <g filter="url(#rough)" fill="none" stroke="#2a2826" stroke-linecap="round">
       <rect x="46" y="46" width="936" height="1206" rx="26" stroke-width="3.2" opacity=".78"/>
       <rect x="54" y="52" width="922" height="1196" rx="30" stroke-width="1.4" opacity=".38"/>
-      <path d="M86 236 H 942" stroke-width="1.6" opacity=".35"/>
+      <path d="M86 226 H 942" stroke="#8a6440" stroke-width="2.4" opacity=".75"/>
+      <path d="M86 234 H 942" stroke="#8a6440" stroke-width="1.4" opacity=".6"/>
     </g>
   </svg>
   <div class="ticks"></div>
+  <div class="rules"></div>
+  <svg class="glyph" viewBox="0 0 44 44" aria-hidden="true">__GLYPH__</svg>
   <div class="cross c1"></div><div class="cross c2"></div>
   <div class="n">__INDEX__ / __TOTAL__</div>
   <div class="kicker">__KICKER__</div>

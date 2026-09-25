@@ -35,7 +35,27 @@ L10N = {
            "missed": "Missed only", "shuffle": "Shuffle", "show": "Show answer", "done": "Deck complete",
            "ask": "Ask for more", "copied": "Question copied — paste it into your chat with Mila", "next": "Next review"},
 }
+# TRAINER-V2-0925: строки тренажёра v2 (свайпы, итог сессии, кольцо прогресса)
+L10N["ru"].update({"due": "Сегодня", "missed": "Ошибки", "answer": "ответ", "again": "Повторить", "flip": "Перевернуть карту", "mode": "Какие карты", "language": "Язык",
+    "progress": "Пройдено {n} из {t}", "difficulty": "Сложность", "swipe_hint": "Свайп вправо — знаю, влево — повторить",
+    "key_hint": "Пробел — перевернуть · → знаю · ← повторить · ↓ трудно", "to_review": "Вернуться к этим картам",
+    "leitner": "Карты, которые вы знаете, придут реже: через 1, 3, 7, 14 и 30 дней.", "review_missed": "Повторить ошибки",
+    "restart": "Пройти заново", "nothing_due": "На сегодня повторять нечего", "shuffled": "Колода перемешана",
+    "footer": "MILAGPT Studio · прогресс хранится на этом устройстве"})
+L10N["uz_latn"].update({"due": "Bugun", "missed": "Xatolar", "answer": "javob", "again": "Takrorlash", "flip": "Kartani aylantirish", "mode": "Qaysi kartalar", "language": "Til",
+    "progress": "{t} tadan {n} tasi oʻtildi", "difficulty": "Qiyinlik", "swipe_hint": "Oʻngga surish — bilaman, chapga — takrorlash",
+    "key_hint": "Probel — aylantirish · → bilaman · ← takrorlash · ↓ qiyin", "to_review": "Shu kartalarga qayting",
+    "leitner": "Biladigan kartalaringiz kamroq keladi: 1, 3, 7, 14 va 30 kundan keyin.", "review_missed": "Xatolarni takrorlash",
+    "restart": "Qaytadan boshlash", "nothing_due": "Bugun takrorlash uchun karta yoʻq", "shuffled": "Toʻplam aralashtirildi",
+    "footer": "MILAGPT Studio · natijalar shu qurilmada saqlanadi"})
+L10N["en"].update({"due": "Today", "missed": "Mistakes", "answer": "answer", "again": "Again", "flip": "Flip the card", "mode": "Which cards", "language": "Language",
+    "progress": "{n} of {t} done", "difficulty": "Difficulty", "swipe_hint": "Swipe right if you know it, left to see it again",
+    "key_hint": "Space to flip · → know · ← again · ↓ hard", "to_review": "Come back to these",
+    "leitner": "Cards you know come back less often: after 1, 3, 7, 14 and 30 days.", "review_missed": "Review mistakes",
+    "restart": "Start over", "nothing_due": "Nothing due today", "shuffled": "Deck shuffled",
+    "footer": "MILAGPT Studio · progress is saved on this device"})
 L10N["uz_cyrl"] = {k: latn2cyrl(v) for k, v in L10N["uz_latn"].items()}
+L10N["uz_cyrl"]["progress"] = "{t} тадан {n} таси ўтилди"  # заполнители не транслитерируем
 LANG_NAMES = {"ru": "Русский", "uz_latn": "Oʻzbekcha", "uz_cyrl": "Ўзбекча", "en": "English"}
 CLOZE = re.compile(r"\{\{(?:c\d+::)?(.+?)(?:::(.+?))?\}\}")
 TYPES = ("qa", "cloze", "explain")
@@ -171,6 +191,14 @@ def deckle(seed):
     return "polygon(%s)" % ",".join("%.2f%% %.2f%%" % p for p in pts)
 
 
+# значки типа карты — те же, что в тренажёре (templates/trainer.html, GLYPH)
+GLYPH = {
+    "qa": '<path d="M16 17c0-4.5 3.4-7.3 7.4-7.3 4.2 0 7.2 2.7 7.2 6.3 0 3.4-2.5 4.9-4.6 6.1-1.8 1-2.6 2.1-2.6 4.4"/><circle class="t" cx="23.3" cy="32.6" r="1.3"/><path d="M6.5 22.5c.4-9 7-15.3 16.3-15.6 9.9-.3 15.9 6.8 15.6 15.4-.3 9.6-7.6 15.4-16.4 15-3-.1-5.4-.8-7.6-2l-6.3 2.3 2-5.6c-2.4-2.6-3.8-6-3.6-9.5z"/>',
+    "cloze": '<path d="M11 10c-3 .5-3.5 2.5-3.5 5.5v4c0 1.8-1 2.8-2.8 3 1.8.2 2.8 1.2 2.8 3v4c0 3 .5 5 3.5 5.5M33 10c3 .5 3.5 2.5 3.5 5.5v4c0 1.8 1 2.8 2.8 3-1.8.2-2.8 1.2-2.8 3v4c0 3-.5 5-3.5 5.5"/><path class="t" d="M14.5 27.5c4.6-.6 10.3-.5 15.2.2"/><path d="M15 18.5h14"/>',
+    "explain": '<path d="M8 12.5c0-2.6 1.8-4 4.4-4.2 6.5-.4 13.4-.4 19.6 0 2.6.2 4.2 1.8 4.2 4.3v12.3c0 2.5-1.6 4-4.2 4.2-4.3.3-8.1.3-12.3.2l-7.4 6 1.1-6.2c-3.4-.3-5.2-1.8-5.3-4.3-.2-4.1-.2-8.1-.1-12.3z"/><path class="t" d="M13.5 15.5c5.8-.3 11.6-.3 17.2 0M13.5 20.5c4.5-.2 9-.2 13.5.1M13.5 25.4c3.1-.1 6.2 0 9.2.1"/>',
+}
+
+
 def face(deck, c, lg, idx, total, side, fonts_href):
     L = L10N.get(lg, L10N["ru"])
     s = c[lg]
@@ -218,7 +246,8 @@ def face(deck, c, lg, idx, total, side, fonts_href):
                .replace("__SEED__", str(seed))
                .replace("__INDEX__", str(idx)).replace("__TOTAL__", str(total))
                .replace("__KICKER__", esc(tr(deck, "kicker", lg) or tr(deck, "title", lg)))
-               .replace("__TYPE__", esc(L[t]))
+               .replace("__GLYPH__", GLYPH.get(t, GLYPH["qa"]))
+               .replace("__TYPE__", esc(L[t] if side == "front" else L.get("answer", L[t])))
                .replace("__DOTS__", dots)
                .replace("__BODY__", body)
                .replace("__SRC__", src_html)
