@@ -1,5 +1,15 @@
 # Mila Companion
 
+![Mila Companion](docs/preview.png)
+
+**Don't want to set it up yourself?** We run it for you: [Mila Pro](https://t.me/mila_tashkent_bot?start=pro_github) — an AI employee in Telegram for small businesses, ~$50/month + your Claude plan.
+
+**TL;DR** — Claude Code waits for you at a keyboard. Mila Companion puts it in your team's Telegram: reachable from a phone, present in client chats, surviving restarts.
+
+**Quick start** — 1) get a Claude subscription · 2) create a Telegram bot with @BotFather · 3) follow [Install](#install) (≈15 min).
+
+**See also:** [mila-telegram](https://github.com/shakhruz/mila-telegram) — the Telegram channel it runs on.
+
 The kit that turns a Claude Code subscription into an assistant your team can
 actually talk to — in Telegram, in group chats, all day.
 
