@@ -24,26 +24,26 @@ Every rule in here cost us something before it became a rule.
 
 ## What it is for
 
-A companion, not a replacement. Each client has a director — an agent that works
+A companion, not a replacement. Each client has an operator — an agent that works
 in their chats, on their budget, under their rules. The companion sits next to
 the owner instead, runs on the owner's own subscription, and has one first duty:
-keep the directors healthy and make them better.
+keep the operators healthy and make them better.
 
 That duty is concrete work, not a slogan:
 
-- **Prevention** — watch for the failure the director cannot see: a silent
+- **Prevention** — watch for the failure the operator cannot see: a silent
   channel, an empty fuel account, a promise with a deadline nobody will meet.
-- **Teaching** — when a director lacks an ability, install the ability, don't do
+- **Teaching** — when an operator lacks an ability, install the ability, don't do
   the work in its place. A rule learned once is cheaper than a task done twice.
 - **Review** — do the same task on the strongest model, compare, and show the
-  director the difference on its own work rather than in the abstract.
+  operator the difference on its own work rather than in the abstract.
 - **Monitoring** — know which agents are alive, what they answered, and what
   they promised, before the client notices.
 
 The second duty is the work itself. The companion has the whole professional
 skill catalogue and the strongest model available on a subscription, so
 strategy, judgement calls and anything creative land here. The split between
-"the director does it" and "the companion does it" is the owner's dial, not a
+"the operator does it" and "the companion does it" is the owner's dial, not a
 property of the code: it moves per task, per client, per day.
 
 Two things are deliberately separate from this repository:
@@ -51,7 +51,7 @@ Two things are deliberately separate from this repository:
 - **The Telegram plugin** — the channel itself is a standalone Claude Code
   plugin, on its way to the Anthropic plugin marketplace. This kit uses it; it
   does not contain it.
-- **The fleet runtime** — the directors run on a different core entirely. The
+- **The fleet runtime** — the operators run on a different core entirely. The
   companion talks to them, it is not built from them.
 
 ---
@@ -64,9 +64,9 @@ Two things are deliberately separate from this repository:
 | `skills/mila-session` | The four links of the Telegram channel and how to check each one when something goes quiet. |
 | `skills/communication` + `CHECKLIST.md` | How every outgoing message is built: result first, one screen, evidence per fact, no self-deprecation, the supplier's frame with a pushy client. The checklist is the 30-second version read before each send. |
 | `skills/mila-tasks` | Commitments ledger: tasks, promises to people, decisions waiting on the owner — append-only `ledger.jsonl`, closure only with machine-run proof, `task.py` (stdlib) and two hooks that catch promises in outgoing messages. |
-| `skills/tasks-discipline` | For a client-facing director: a named deadline becomes a task, not a phrase; take it, do it, report with proof. |
+| `skills/tasks-discipline` | For a client-facing operator: a named deadline becomes a task, not a phrase; take it, do it, report with proof. |
 | `skills/mail-outbound` | Letters leave in two steps (draft → human's tap → send); an address found by search is a hypothesis until checked; no invented contacts. |
-| `skills/crm-dialogs`, `inbox-triage`, `lead-qualify`, `reply-from-examples`, `polite-no`, `escalate-to-owner`, `dialog-close` | The communicator set for a director: triage the inbox in one pass, qualify a lead, draft from the owner's own examples, decline without discounts, escalate with one card, close a dialog with a stated reason. |
+| `skills/crm-dialogs`, `inbox-triage`, `lead-qualify`, `reply-from-examples`, `polite-no`, `escalate-to-owner`, `dialog-close` | The communicator set for an operator: triage the inbox in one pass, qualify a lead, draft from the owner's own examples, decline without discounts, escalate with one card, close a dialog with a stated reason. |
 | `skills/subscription` | Subscription state for the owner: five-hour and weekly windows, per-model limits, reset countdowns, burn-rate forecast; `/usage`, `/usage all`, `/usage watch on|off` in the bot, a rich-media card (Chrome or a shared PNG from the senior), an hourly watcher that warns before the wall. |
 | `skills/youtube-research` | Research a topic through YouTube transcripts before writing about it. |
 | `skills/video-overview` | Narrated video explainer from a scenario, like NotebookLM Video Overview but editable: pencil-sketch or brand style, 16:9 and 9:16 from one script, burned-in captions + `.srt`, YouTube chapters, cover; ru/uz/en. Stdlib builder, HyperFrames render queue on the host. |
@@ -77,7 +77,7 @@ Two things are deliberately separate from this repository:
 | `install/reply-required.py` | Stop hook: if the last inbound was a Telegram `<channel>` message and the session has not called the plugin `reply` tool since, the stop is blocked with a reason — the owner reads Telegram, not the transcript. Born from a client companion launch (12.09.2026): the first replies were plain text and never reached the owner. |
 | `install/telegram-inbox-feed.py` | Hook that surfaces incoming Telegram messages in the terminal — and any promise whose deadline is today or past. |
 | `install/usage_collect.py` | Token spend by day and model, read straight from the session transcripts. Wired into the launcher as `mila usage`. |
-| `install/records.py` + `install/turns_collect.py` | The books: a turn-by-turn conversation table (schema-compatible with the fleet's directors) and a ledger of paid outbound calls, with a switch for how much of the conversation text is kept. `mila turns`, `mila records`. See [`docs/uchet.md`](docs/uchet.md). |
+| `install/records.py` + `install/turns_collect.py` | The books: a turn-by-turn conversation table (schema-compatible with the fleet's operators) and a ledger of paid outbound calls, with a switch for how much of the conversation text is kept. `mila turns`, `mila records`. See [`docs/uchet.md`](docs/uchet.md). |
 | `install/chats_index.py` | Chat registry: which chats are connected, who talks in them, when they last did. `mila chats`. |
 | `install/chat_locale.py` | Timezone and language per chat. `mila when` shows what time it is for every client and who is in quiet hours. |
 | `install/chat_note.py` | Writes into a chat card — purpose, participants, promises, notes. `mila owe` lists every open promise across all chats. |
@@ -222,10 +222,10 @@ $ mila records show external --days 30
 **`conversations.db` · `turns`** — what happened. One row per exchange: the
 person's message and the agent's reply, with the model, the reasoning mode, the
 tokens, cache reads and writes separately, latency, the tools called and the
-price. The first fourteen columns match a fleet director's `turns` table
+price. The first fourteen columns match a fleet operator's `turns` table
 verbatim, so "how much did we talk to this client" is one query across the fleet
 and the companion; the extra columns are added with `ALTER TABLE`, which means
-this module can open a director's live database and extend it without losing a
+this module can open an operator's live database and extend it without losing a
 row.
 
 The price in that table is **notional** whenever `paid_by = subscription`.
