@@ -73,6 +73,11 @@ Two things are deliberately separate from this repository:
 | `skills/infographic` | One complex idea as one picture, NotebookLM-style: a pencil-sketch page generated whole by the image model, a series of pages bound into a PDF, Uzbek in Cyrillic and Latin; a branded HTML fallback rendered by the host queue. |
 | `skills/mini-podcast` | A two-host audio overview of a report or lesson: a lively dialogue script, ElevenLabs Text to Dialogue in chunks under the API limit, one mp3 with loudness checked. |
 | `skills/flashcards` | Flashcards from any source, NotebookLM-style but with a source quote on every card, three card types (Q&A, cloze, explain-in-your-own-words), spaced repetition (Leitner 1·3·7·14·30 in a phone trainer), ru / uz Latin / uz Cyrillic (auto-transliterated) / en, pencil-sketch PNGs, duplex-ready A4 PDF, one-click Anki import, Telegram quiz polls. Stdlib, host render queue. |
+| `skills/client-value` | Holding value with a client instead of apologising: a price dispute, "I won't pay", a devalued piece of work, haggling, the first talk about money. |
+| `skills/copyblock` | Text a person will forward goes out as a monospace block — one tap to copy on a phone. `tg_md2.py` escapes Telegram MarkdownV2. |
+| `skills/humanizer-ru` | Russian style pass: strips bureaucratese, anglicisms and machine tone from anything a person will read. |
+| `skills/subscription-limits` | When the Claude plan hits its limit: how to tell, what to say to the person, what not to invent, what to do after the reset, how to change plans. |
+| `skills/telegram-ads` | Telegram Ads (ads.telegram.org) for the owner's business: access, a 160-character ad, audience, budget, moderation, stats. |
 | `install/mila` | One-word launcher: `mila` resumes, `mila new` starts fresh, `mila status` checks the channel, `mila inbox` shows unread messages. |
 | `install/reply-required.py` | Stop hook: if the last inbound was a Telegram `<channel>` message and the session has not called the plugin `reply` tool since, the stop is blocked with a reason — the owner reads Telegram, not the transcript. Born from a client companion launch (12.09.2026): the first replies were plain text and never reached the owner. |
 | `install/telegram-inbox-feed.py` | Hook that surfaces incoming Telegram messages in the terminal — and any promise whose deadline is today or past. |
