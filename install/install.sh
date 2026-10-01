@@ -19,8 +19,37 @@ BIN_DIR="$HOME/.local/bin"
 DRY=0
 [[ "${1:-}" == "--dry-run" ]] && DRY=1
 
+# Every backup this run actually made (or, in --dry-run, would make), for the
+# summary printed at the end — the point of a backup nobody can find is the
+# same as having none.
+declare -a BACKUPS=()
+
 say() { printf '  %s\n' "$*"; }
 run() { if [[ $DRY -eq 1 ]]; then say "would: $*"; else "$@"; fi; }
+
+# Copies $1 (source) over $2 (destination), keeping a timestamped backup of
+# whatever was already at the destination — unless it is byte-identical to
+# what's about to replace it, in which case there is nothing worth keeping
+# and nothing worth copying. Honours --dry-run: announces, writes nothing.
+install_file() {
+  local src="$1" dst="$2" label="${3:-$(basename "$2")}"
+  if [[ -e "$dst" ]]; then
+    if cmp -s "$src" "$dst" 2>/dev/null; then
+      say "$label — unchanged, no copy needed"
+      return
+    fi
+    local backup="$dst.bak-$(date +%Y%m%d-%H%M%S)"
+    if [[ $DRY -eq 1 ]]; then
+      say "would back up existing $label to $(basename "$backup")"
+      BACKUPS+=("$backup")
+    else
+      cp -p "$dst" "$backup"
+      BACKUPS+=("$backup")
+      say "$label — exists, keeping a copy at $(basename "$backup")"
+    fi
+  fi
+  run cp "$src" "$dst"
+}
 
 echo "Mila Companion installer"
 echo "  target: $CLAUDE_DIR"
@@ -33,11 +62,21 @@ run mkdir -p "$CLAUDE_DIR/skills"
 for d in "$ROOT"/skills/*/; do
   name="$(basename "$d")"
   target="$CLAUDE_DIR/skills/$name"
-  if [[ -e "$target" && $DRY -eq 0 ]]; then
+  if [[ -e "$target" ]]; then
+    if diff -rq "$d" "$target" >/dev/null 2>&1; then
+      say "$name — unchanged, no copy needed"
+      continue
+    fi
     # Never overwrite silently: a customised skill is someone's work.
     backup="$target.bak-$(date +%Y%m%d-%H%M%S)"
-    say "$name — exists, keeping a copy at $(basename "$backup")"
-    mv "$target" "$backup"
+    if [[ $DRY -eq 1 ]]; then
+      say "would back up existing $name to $(basename "$backup")"
+      BACKUPS+=("$backup")
+    else
+      mv "$target" "$backup"
+      BACKUPS+=("$backup")
+      say "$name — exists, keeping a copy at $(basename "$backup")"
+    fi
   fi
   run cp -R "$d" "$target"
   say "$name installed"
@@ -47,7 +86,7 @@ echo
 # ── launcher ──────────────────────────────────────────────────────────────
 echo "Launcher"
 run mkdir -p "$BIN_DIR"
-run cp "$HERE/mila" "$BIN_DIR/mila"
+install_file "$HERE/mila" "$BIN_DIR/mila" "mila"
 run chmod 755 "$BIN_DIR/mila"
 say "mila → $BIN_DIR/mila"
 case ":$PATH:" in
@@ -61,7 +100,7 @@ echo
 echo "Inbox hook"
 HOOK_DIR="$CLAUDE_DIR/hooks"
 run mkdir -p "$HOOK_DIR"
-run cp "$HERE/telegram-inbox-feed.py" "$HOOK_DIR/telegram-inbox-feed.py"
+install_file "$HERE/telegram-inbox-feed.py" "$HOOK_DIR/telegram-inbox-feed.py" "telegram-inbox-feed.py"
 run chmod 755 "$HOOK_DIR/telegram-inbox-feed.py"
 say "hook → $HOOK_DIR/telegram-inbox-feed.py"
 echo
@@ -75,7 +114,7 @@ echo "Tools"
 for f in usage_collect.py turns_collect.py records.py chats_index.py \
          chat_note.py chat_locale.py doctor.py backup.py design_check.py; do
   if [[ -f "$HERE/$f" ]]; then
-    run cp "$HERE/$f" "$HOOK_DIR/$f"
+    install_file "$HERE/$f" "$HOOK_DIR/$f" "$f"
     run chmod 755 "$HOOK_DIR/$f"
     say "$f"
   else
@@ -196,16 +235,20 @@ elif [[ -f "$HERE/permissions.example.json" ]]; then
   say "  it decides what runs without asking you: $POLICY"
 fi
 
-if [[ $DRY -eq 0 ]]; then
-  python3 - "$CLAUDE_DIR" << 'PY'
-import json, os, sys
+if [[ $DRY -eq 1 ]]; then
+  say "would check $CLAUDE_DIR/settings.json — register the hook, backing up first if it changes"
+else
+  SETTINGS_OUT="$(python3 - "$CLAUDE_DIR" << 'PY'
+import json, os, sys, datetime
 cfg_dir = sys.argv[1]
 p = os.path.join(cfg_dir, 'settings.json')
 hook_cmd = os.path.join(cfg_dir, 'hooks', 'telegram-inbox-feed.py')
 try:
     with open(p, encoding='utf-8') as f:
-        cfg = json.load(f)
+        raw = f.read()
+    cfg = json.loads(raw)
 except FileNotFoundError:
+    raw = None
     cfg = {}
 except json.JSONDecodeError:
     print('  settings.json is not valid JSON — hook NOT registered, add it by hand')
@@ -218,16 +261,40 @@ if already:
     print('  already registered in settings.json')
 else:
     entries.append({'hooks': [{'type': 'command', 'command': hook_cmd}]})
-    backup = p + '.bak-milacore'
-    if os.path.exists(p):
+    new_raw = json.dumps(cfg, ensure_ascii=False, indent=2)
+    if raw is not None and raw != new_raw:
+        ts = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+        backup = p + f'.bak-{ts}'
         with open(backup, 'w', encoding='utf-8') as f:
-            json.dump(json.load(open(p, encoding='utf-8')), f, ensure_ascii=False, indent=2)
+            f.write(raw)
+        print(f'BACKUP:{backup}')
+        print(f'  registered in settings.json (previous version kept as {os.path.basename(backup)})')
+    else:
+        print('  registered in settings.json')
     with open(p, 'w', encoding='utf-8') as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
-    print('  registered in settings.json (previous version kept as settings.json.bak-milacore)')
+        f.write(new_raw)
 PY
+)"
+  while IFS= read -r line; do
+    if [[ "$line" == BACKUP:* ]]; then
+      BACKUPS+=("${line#BACKUP:}")
+    else
+      printf '%s\n' "$line"
+    fi
+  done <<< "$SETTINGS_OUT"
 fi
 echo
+if [[ ${#BACKUPS[@]} -gt 0 ]]; then
+  if [[ $DRY -eq 1 ]]; then
+    echo "Would back up (nothing written — dry run):"
+  else
+    echo "Existing files kept as backups:"
+  fi
+  for b in "${BACKUPS[@]}"; do
+    say "$b"
+  done
+  echo
+fi
 echo "Done. Next, inside Claude Code:"
 echo "  /plugin marketplace add shakhruz/mila-telegram"
 echo "  /plugin install mila-telegram@mila"

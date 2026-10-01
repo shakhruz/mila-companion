@@ -133,6 +133,11 @@ cd mila-companion
 ./install/install.sh
 ```
 
+Existing files it would overwrite — skills, the `mila` launcher, hooks, and
+`settings.json` — are saved first as `<file>.bak-YYYYMMDD-HHMMSS`, unchanged
+content is left alone with no copy made, and the installer prints the list of
+backups it made at the end.
+
 Then, inside a Claude Code session:
 
 ```
